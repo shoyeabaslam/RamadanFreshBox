@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Navbar } from "@/components/common/Navbar"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,7 @@ interface OrderDetails {
   transaction_id: string
 }
 
-export default function SuccessPage() {
+function SuccessPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const orderId = searchParams.get('order_id')
@@ -240,13 +240,28 @@ export default function SuccessPage() {
           <div className="mt-8 text-center">
             <p className="text-sm text-muted-foreground">
               Need help? Contact us at{' '}
-              <a href="tel:+919876543210" className="text-primary font-medium hover:underline">
-                +91 98765 43210
+              <a href="tel:+918309644110" className="text-primary font-medium hover:underline">
+                +91 830 964 4110
               </a>
             </p>
           </div>
         </div>
       </div>
     </main>
+  )
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SuccessPageContent />
+    </Suspense>
   )
 }
