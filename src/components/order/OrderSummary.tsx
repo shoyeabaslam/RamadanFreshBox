@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Calendar, MapPin, User, Package, ShoppingBag, CheckCircle2, Minus, Plus } from "lucide-react"
+import { Calendar, MapPin, User, Package, ShoppingBag, CheckCircle2, Minus, Plus, Tag, Loader2, X } from "lucide-react"
 import { OrderType } from "./OrderTypeSelector"
 import { DeliveryDetails } from "./DeliveryDetailsForm"
+import { useState } from "react"
 
 interface OrderSummaryProps {
   readonly packageDetails: {
@@ -20,6 +21,7 @@ interface OrderSummaryProps {
   readonly deliveryDetails: DeliveryDetails
   readonly quantity: number
   readonly onQuantityChange?: (quantity: number) => void
+  readonly onCouponApplied?: (coupon: { code: string; discountType: string; discountValue: number } | null) => void
 }
 
 export function OrderSummary({
@@ -29,13 +31,83 @@ export function OrderSummary({
   deliveryDetails,
   quantity = 1,
   onQuantityChange,
+  onCouponApplied,
 }: OrderSummaryProps) {
-  const totalAmount = packageDetails.price * quantity
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountType: string; discountValue: number } | null>(null)
+  const [couponError, setCouponError] = useState('')
+  const [isVerifying, setIsVerifying] = useState(false)
+
+  const subtotal = packageDetails.price * quantity
+  
+  // Calculate discount
+  let discountAmount = 0
+  if (appliedCoupon) {
+    if (appliedCoupon.discountType === 'percentage') {
+      discountAmount = (subtotal * appliedCoupon.discountValue) / 100
+    } else {
+      discountAmount = appliedCoupon.discountValue
+    }
+    discountAmount = Math.min(discountAmount, subtotal)
+  }
+  
+  const totalAmount = subtotal - discountAmount
   const minQuantity = (orderType === 'donate' || orderType === 'sponsor') ? 10 : 1
 
   const handleQuantityChange = (newQuantity: number) => {
     if (onQuantityChange) {
       onQuantityChange(Math.min(100, Math.max(minQuantity, newQuantity)))
+    }
+  }
+
+  const handleVerifyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code')
+      return
+    }
+
+    setIsVerifying(true)
+    setCouponError('')
+
+    try {
+      const response = await fetch('/api/coupons/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim() }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setCouponError(data.error || 'Invalid coupon code')
+        return
+      }
+
+      const couponData = {
+        code: data.coupon.code,
+        discountType: data.coupon.discountType,
+        discountValue: data.coupon.discountValue,
+      }
+
+      setAppliedCoupon(couponData)
+      if (onCouponApplied) {
+        onCouponApplied(couponData)
+      }
+      setCouponError('')
+    } catch (error) {
+      console.error('Error verifying coupon:', error)
+      setCouponError('Failed to verify coupon. Please try again.')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponCode('')
+    setCouponError('')
+    if (onCouponApplied) {
+      onCouponApplied(null)
     }
   }
 
@@ -249,16 +321,106 @@ export function OrderSummary({
 
       {/* Total Amount */}
       <Card className="border-2 border-primary">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Amount</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {quantity > 1 ? `₹${packageDetails.price} × ${quantity} boxes` : 'Includes all taxes'}
-              </p>
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          {/* Coupon Code Section */}
+          <div className="space-y-3 pb-4 border-b border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="w-4 h-4 text-primary" />
+              <p className="text-sm font-medium text-foreground">Have a coupon code?</p>
             </div>
-            <div className="text-right">
-              <p className="text-3xl sm:text-4xl font-bold text-primary">₹{totalAmount}</p>
+            
+            {!appliedCoupon ? (
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase())
+                    setCouponError('')
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleVerifyCoupon()
+                    }
+                  }}
+                  className="flex-1"
+                  disabled={isVerifying}
+                />
+                <Button
+                  onClick={handleVerifyCoupon}
+                  disabled={isVerifying || !couponCode.trim()}
+                  variant="outline"
+                  className="shrink-0"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Apply'
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-green-800">{appliedCoupon.code}</p>
+                    <p className="text-xs text-green-600">
+                      {appliedCoupon.discountType === 'percentage' 
+                        ? `${appliedCoupon.discountValue}% discount applied` 
+                        : `₹${appliedCoupon.discountValue} discount applied`}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={handleRemoveCoupon}
+                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+
+            {couponError && (
+              <p className="text-xs text-red-600 flex items-center gap-1">
+                <X className="w-3 h-3" />
+                {couponError}
+              </p>
+            )}
+          </div>
+
+          {/* Pricing Breakdown */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <p className="text-muted-foreground">Subtotal</p>
+              <p className="font-medium text-foreground">₹{subtotal}</p>
+            </div>
+
+            {appliedCoupon && discountAmount > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <p className="text-green-600 font-medium">Discount</p>
+                <p className="font-semibold text-green-600">-₹{discountAmount.toFixed(2)}</p>
+              </div>
+            )}
+
+            <div className="border-t border-border pt-2 mt-2">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-base font-semibold text-foreground">Total Amount</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {quantity > 1 ? `₹${packageDetails.price} × ${quantity} boxes` : 'Includes all taxes'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl sm:text-4xl font-bold text-primary">₹{totalAmount.toFixed(2)}</p>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

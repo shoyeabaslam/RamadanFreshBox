@@ -177,3 +177,40 @@ WHERE deleted_at IS NULL;
 CREATE INDEX idx_delivery_batches_location
 ON delivery_batches(location)
 WHERE deleted_at IS NULL;
+
+
+
+
+
+CREATE TYPE discount_type_enum AS ENUM (
+  'percentage',
+  'flat'
+);
+
+CREATE TABLE coupons (
+  id SERIAL PRIMARY KEY,
+
+  code VARCHAR(50) UNIQUE NOT NULL,   -- e.g. RAMADAN10
+
+  discount_type discount_type_enum NOT NULL,
+  discount_value NUMERIC(10,2) NOT NULL,
+
+  valid_from DATE NOT NULL,
+  valid_until DATE NOT NULL,
+
+  is_active BOOLEAN DEFAULT TRUE,
+
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+
+
+-- Add coupon support to orders table
+ALTER TABLE orders 
+ADD COLUMN coupon_id INT REFERENCES coupons(id),
+ADD COLUMN discount_amount NUMERIC(10,2) DEFAULT 0;
+
+-- Create index for coupon usage tracking
+CREATE INDEX idx_orders_coupon
+ON orders(coupon_id)
+WHERE coupon_id IS NOT NULL;

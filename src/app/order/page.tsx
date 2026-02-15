@@ -37,7 +37,12 @@ function OrderPageContent() {
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountType: string; discountValue: number } | null>(null)
   const { settings, selfCutoffTime, donateCutoffTime } = useSettings()
+
+  useEffect(()=>{
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  },[step])
 
   // Fetch package details
   useEffect(() => {
@@ -138,6 +143,7 @@ function OrderPageContent() {
         fruit_ids: selectedFruits,
         sponsor_name: deliveryDetails.sponsorName || null,
         sponsor_message: deliveryDetails.sponsorMessage || null,
+        coupon_code: appliedCoupon?.code || null,
       }
 
       // Step 1: Create order in database
@@ -544,6 +550,7 @@ function OrderPageContent() {
               deliveryDetails={deliveryDetails}
               quantity={quantity}
               onQuantityChange={setQuantity}
+              onCouponApplied={setAppliedCoupon}
             />
           )}
         </div>

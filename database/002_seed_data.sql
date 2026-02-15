@@ -200,3 +200,18 @@ VALUES (
 
 
 
+INSERT INTO coupons (
+  code,
+  discount_type,
+  discount_value,
+  valid_from,
+  valid_until
+)
+VALUES (
+  'RAMADAN10',
+  'percentage',
+  10,
+  CURRENT_DATE,
+  CURRENT_DATE + INTERVAL '10 days'
+);
+

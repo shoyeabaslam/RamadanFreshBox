@@ -23,6 +23,7 @@ interface OrderRequest extends Record<string, unknown> {
   fruit_ids: number[]
   sponsor_name?: string
   sponsor_message?: string
+  coupon_code?: string
 }
 
 // Helper function to validate basic order data
@@ -218,7 +219,54 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate total amount
-    const totalAmount = Number.parseFloat(pkg.price) * body.quantity
+    let totalAmount = Number.parseFloat(pkg.price) * body.quantity
+    let discountAmount = 0
+    let couponId: number | null = null
+
+    // Verify and apply coupon if provided
+    if (body.coupon_code) {
+      const couponResult = await client.query(
+        `SELECT 
+          id,
+          code,
+          discount_type,
+          discount_value,
+          valid_from,
+          valid_until,
+          is_active
+        FROM coupons
+        WHERE UPPER(code) = UPPER($1)
+        AND is_active = TRUE
+        AND valid_from <= CURRENT_DATE
+        AND valid_until >= CURRENT_DATE`,
+        [body.coupon_code]
+      )
+
+      if (couponResult.rows.length === 0) {
+        await client.query('ROLLBACK')
+        return errorResponse('Invalid or expired coupon code', 400)
+      }
+
+      const coupon = couponResult.rows[0] as {
+        id: number
+        discount_type: 'percentage' | 'fixed'
+        discount_value: string
+      }
+
+      couponId = coupon.id
+      const discountValue = Number.parseFloat(coupon.discount_value)
+
+      // Calculate discount
+      if (coupon.discount_type === 'percentage') {
+        discountAmount = (totalAmount * discountValue) / 100
+      } else {
+        discountAmount = discountValue
+      }
+
+      // Ensure discount doesn't exceed total
+      discountAmount = Math.min(discountAmount, totalAmount)
+      totalAmount = totalAmount - discountAmount
+    }
 
     // Sanitize inputs
     const sanitized = sanitizeOrderInputs(body)
@@ -228,8 +276,8 @@ export async function POST(request: NextRequest) {
       `INSERT INTO orders (
         package_id, quantity, order_type, delivery_date, delivery_location,
         customer_name, phone_number, address, total_amount, status,
-        sponsor_name, sponsor_message
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        sponsor_name, sponsor_message, coupon_id, discount_amount
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id`,
       [
         body.package_id,
@@ -244,6 +292,8 @@ export async function POST(request: NextRequest) {
         'pending',
         sanitized.sanitizedSponsorName,
         sanitized.sanitizedSponsorMessage,
+        couponId,
+        discountAmount,
       ]
     )
 
@@ -264,6 +314,7 @@ export async function POST(request: NextRequest) {
       {
         order_id: orderId,
         total_amount: totalAmount,
+        discount_amount: discountAmount,
         status: 'pending',
         message: 'Order created successfully',
       },
