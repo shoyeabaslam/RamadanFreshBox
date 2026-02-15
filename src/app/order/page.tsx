@@ -9,7 +9,8 @@ import { DeliveryDetailsForm, DeliveryDetails } from "@/components/order/Deliver
 import { OrderSummary } from "@/components/order/OrderSummary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft, ArrowRight, Minus, Plus, ShoppingCart } from "lucide-react"
+import { ArrowLeft, ArrowRight, Minus, Plus, ShoppingCart, Clock } from "lucide-react"
+import { useSettings, isCutoffTimePassed } from "@/hooks/useSettings"
 
 interface Package {
   id: number
@@ -36,6 +37,7 @@ function OrderPageContent() {
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
+  const { settings, selfCutoffTime, donateCutoffTime } = useSettings()
 
   // Fetch package details
   useEffect(() => {
@@ -297,6 +299,24 @@ function OrderPageContent() {
     return false
   }
 
+  // Check if cutoff time has passed for today's delivery
+  const getCutoffWarning = () => {
+    if (!deliveryDetails?.deliveryDate || !settings) return null
+    
+    const cutoffTime = orderType === 'self' 
+      ? settings.self_cutoff_time 
+      : settings.donate_cutoff_time
+    
+    const isPassed = isCutoffTimePassed(cutoffTime, deliveryDetails.deliveryDate)
+    
+    if (isPassed) {
+      const formattedTime = orderType === 'self' ? selfCutoffTime : donateCutoffTime
+      return `Orders for today must be placed before ${formattedTime}. Please select a different delivery date.`
+    }
+    
+    return null
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -528,6 +548,21 @@ function OrderPageContent() {
           )}
         </div>
 
+        {/* Cutoff Time Warning */}
+        {step >= 3 && getCutoffWarning() && (
+          <div className="mb-6 bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-semibold text-destructive mb-1">Order Cutoff Time Exceeded</h4>
+                <p className="text-sm text-destructive/90">
+                  {getCutoffWarning()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-between">
           <Button
@@ -542,7 +577,7 @@ function OrderPageContent() {
 
           <Button
             onClick={handleNext}
-            disabled={!canProceed() || isLoading}
+            disabled={!canProceed() || isLoading || (step >= 3 && !!getCutoffWarning())}
             size="lg"
             className="w-full sm:w-auto"
           >

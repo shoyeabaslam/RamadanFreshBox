@@ -54,6 +54,57 @@ function validateBasicOrderData(body: OrderRequest) {
   return null
 }
 
+// Helper function to check cutoff time
+async function checkCutoffTime(orderType: string, deliveryDate: string) {
+  const now = new Date()
+  const delivery = new Date(deliveryDate)
+  
+  // Only check cutoff for today's deliveries
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  delivery.setHours(0, 0, 0, 0)
+  
+  if (delivery.getTime() !== today.getTime()) {
+    return null // Not ordering for today, no cutoff applies
+  }
+  
+  // Fetch settings from database
+  const settingsResult = await query('SELECT key, value FROM settings')
+  const settings = settingsResult.rows.reduce((acc, row) => {
+    acc[row.key] = row.value
+    return acc
+  }, {} as Record<string, string>)
+  
+  const cutoffTimeKey = orderType === 'self' ? 'self_cutoff_time' : 'donate_cutoff_time'
+  const cutoffTime = settings[cutoffTimeKey]
+  
+  if (!cutoffTime) {
+    return null // No cutoff time set
+  }
+  
+  // Parse cutoff time (format: "HH:MM")
+  const [cutoffHours, cutoffMinutes] = cutoffTime.split(':').map(Number)
+  
+  // Get current time
+  const currentHours = now.getHours()
+  const currentMinutes = now.getMinutes()
+  
+  // Convert to minutes for easier comparison
+  const currentTotalMinutes = currentHours * 60 + currentMinutes
+  const cutoffTotalMinutes = cutoffHours * 60 + cutoffMinutes
+  
+  if (currentTotalMinutes >= cutoffTotalMinutes) {
+    // Format time for user-friendly message
+    const period = cutoffHours >= 12 ? 'PM' : 'AM'
+    const hours12 = cutoffHours % 12 || 12
+    const formattedTime = `${hours12}:${cutoffMinutes.toString().padStart(2, '0')} ${period}`
+    
+    return `Orders for today must be placed before ${formattedTime}. Please select a different delivery date.`
+  }
+  
+  return null
+}
+
 // Helper function to validate order type specific requirements
 function validateOrderTypeRequirements(body: OrderRequest) {
   if (body.order_type === 'self' && !body.address) {
@@ -119,6 +170,12 @@ export async function POST(request: NextRequest) {
     const typeError = validateOrderTypeRequirements(body)
     if (typeError) {
       return errorResponse(typeError, 400)
+    }
+
+    // Check cutoff time for today's orders
+    const cutoffError = await checkCutoffTime(body.order_type, body.delivery_date)
+    if (cutoffError) {
+      return errorResponse(cutoffError, 400)
     }
 
     // Start transaction

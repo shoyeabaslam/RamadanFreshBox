@@ -24,6 +24,34 @@ export function formatTime(time24: string): string {
   return `${hours12} ${period}`
 }
 
+// Check if current time has exceeded cutoff time
+export function isCutoffTimePassed(cutoffTime: string, deliveryDate: string): boolean {
+  const now = new Date()
+  const delivery = new Date(deliveryDate)
+  
+  // If delivery is not today, cutoff doesn't apply
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  delivery.setHours(0, 0, 0, 0)
+  
+  if (delivery.getTime() !== today.getTime()) {
+    return false
+  }
+  
+  // Parse cutoff time (format: "HH:MM")
+  const [cutoffHours, cutoffMinutes] = cutoffTime.split(':').map(Number)
+  
+  // Get current time
+  const currentHours = now.getHours()
+  const currentMinutes = now.getMinutes()
+  
+  // Convert to minutes for easier comparison
+  const currentTotalMinutes = currentHours * 60 + currentMinutes
+  const cutoffTotalMinutes = cutoffHours * 60 + cutoffMinutes
+  
+  return currentTotalMinutes >= cutoffTotalMinutes
+}
+
 export function useSettings() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [isLoading, setIsLoading] = useState(true)

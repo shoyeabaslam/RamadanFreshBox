@@ -109,12 +109,15 @@ export function Footer() {
             in Hyderabad
           </p>
           
-          <div className="flex gap-6">
-            <a href="#privacy" className="hover:text-primary transition-colors">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+            <a href="/privacy-policy" className="hover:text-primary transition-colors">
               Privacy Policy
             </a>
-            <a href="#terms" className="hover:text-primary transition-colors">
+            <a href="/terms-of-service" className="hover:text-primary transition-colors">
               Terms of Service
+            </a>
+            <a href="/refund-policy" className="hover:text-primary transition-colors">
+              Refund Policy
             </a>
           </div>
         </div>
