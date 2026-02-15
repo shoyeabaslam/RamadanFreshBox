@@ -48,6 +48,16 @@ function validateBasicOrderData(body: OrderRequest) {
     return 'Delivery date cannot be in the past'
   }
 
+  // Validate Ramadan period (Feb 19, 2026 - Mar 20, 2026)
+  const ramadanStart = new Date('2026-02-19')
+  ramadanStart.setHours(0, 0, 0, 0)
+  const ramadanEnd = new Date('2026-03-20')
+  ramadanEnd.setHours(0, 0, 0, 0)
+  
+  if (deliveryDate < ramadanStart || deliveryDate > ramadanEnd) {
+    return 'Delivery date must be within Ramadan period (Feb 19 - Mar 20, 2026)'
+  }
+
   if (body.quantity < 1 || body.quantity > 100) {
     return 'Quantity must be between 1 and 100'
   }

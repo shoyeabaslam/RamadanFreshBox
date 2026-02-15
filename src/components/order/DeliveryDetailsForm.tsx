@@ -134,9 +134,14 @@ export function DeliveryDetailsForm({
     }
   }
 
-  // Get minimum date (today) and maximum date (30 days from now)
+  // Get minimum date (Ramadan start: Feb 19, 2026) and maximum date (Ramadan end: March 20, 2026)
+  const ramadanStart = '2026-02-19'
+  const ramadanEnd = '2026-03-20'
   const today = new Date().toISOString().split('T')[0]
-  const maxDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  
+  // Use today if we're already in Ramadan period, otherwise use Ramadan start date
+  const minDate = today >= ramadanStart ? today : ramadanStart
+  const maxDate = ramadanEnd
 
   return (
     <div className="space-y-6">
@@ -243,14 +248,14 @@ export function DeliveryDetailsForm({
                   id="date"
                   value={formData.deliveryDate}
                   onChange={(e) => handleChange('deliveryDate', e.target.value)}
-                  min={today}
+                  min={minDate}
                   max={maxDate}
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                   required
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Delivery before Maghrib prayer time
+                Delivery before Maghrib (Ramadan: Feb 19 - Mar 20, 2026)
               </p>
             </div>
 
