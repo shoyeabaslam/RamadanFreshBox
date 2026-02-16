@@ -19,6 +19,7 @@ interface OrderRequest extends Record<string, unknown> {
   delivery_location?: string
   customer_name: string
   phone_number: string
+  email?: string
   address?: string
   fruit_ids: number[]
   sponsor_name?: string
@@ -134,6 +135,7 @@ function sanitizeOrderInputs(body: OrderRequest) {
   return {
     sanitizedName: sanitizeInput(body.customer_name),
     sanitizedPhone: sanitizeInput(body.phone_number),
+    sanitizedEmail: body.email ? sanitizeInput(body.email) : null,
     sanitizedAddress: body.address ? sanitizeInput(body.address) : null,
     sanitizedLocation: body.delivery_location ? sanitizeInput(body.delivery_location) : null,
     sanitizedSponsorName: body.sponsor_name ? sanitizeInput(body.sponsor_name) : null,
@@ -285,9 +287,9 @@ export async function POST(request: NextRequest) {
     const orderResult = await client.query(
       `INSERT INTO orders (
         package_id, quantity, order_type, delivery_date, delivery_location,
-        customer_name, phone_number, address, total_amount, status,
+        customer_name, phone_number, email, address, total_amount, status,
         sponsor_name, sponsor_message, coupon_id, discount_amount
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id`,
       [
         body.package_id,
@@ -297,6 +299,7 @@ export async function POST(request: NextRequest) {
         sanitized.sanitizedLocation,
         sanitized.sanitizedName,
         sanitized.sanitizedPhone,
+        sanitized.sanitizedEmail,
         sanitized.sanitizedAddress,
         totalAmount,
         'pending',
@@ -325,6 +328,8 @@ export async function POST(request: NextRequest) {
         order_id: orderId,
         total_amount: totalAmount,
         discount_amount: discountAmount,
+        customer_email: sanitized.sanitizedEmail,
+        customer_name: sanitized.sanitizedName,
         status: 'pending',
         message: 'Order created successfully',
       },

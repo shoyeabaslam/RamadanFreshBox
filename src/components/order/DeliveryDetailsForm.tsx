@@ -8,6 +8,7 @@ import { OrderType } from "./OrderTypeSelector"
 interface DeliveryDetails {
   customerName: string
   phoneNumber: string
+  email: string
   deliveryDate: string
   // Address components
   flatNumber: string
@@ -36,6 +37,7 @@ export function DeliveryDetailsForm({
     deliveryDetails || {
       customerName: "",
       phoneNumber: "",
+      email: "",
       deliveryDate: "",
       flatNumber: "",
       street: "",
@@ -100,6 +102,7 @@ export function DeliveryDetailsForm({
         ...formData,
         customerName: savedAddress.customerName,
         phoneNumber: savedAddress.phoneNumber,
+        email: savedAddress.email,
         flatNumber: savedAddress.flatNumber,
         street: savedAddress.street,
         area: savedAddress.area,
@@ -117,6 +120,11 @@ export function DeliveryDetailsForm({
     return phoneRegex.test(phone)
   }
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
   const validatePincode = (pincode: string) => {
     const pincodeRegex = /^\d{6}$/
     return pincodeRegex.test(pincode)
@@ -125,6 +133,12 @@ export function DeliveryDetailsForm({
   const handlePhoneBlur = () => {
     if (formData.phoneNumber && !validatePhone(formData.phoneNumber)) {
       setErrors({ ...errors, phoneNumber: "Please enter a valid 10-digit Indian mobile number" })
+    }
+  }
+
+  const handleEmailBlur = () => {
+    if (formData.email && !validateEmail(formData.email)) {
+      setErrors({ ...errors, email: "Please enter a valid email address" })
     }
   }
 
@@ -222,6 +236,29 @@ export function DeliveryDetailsForm({
               {errors.phoneNumber && (
                 <p className="text-xs text-red-500 mt-1">{errors.phoneNumber}</p>
               )}
+            </div>
+
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                Email Address <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+                onBlur={handleEmailBlur}
+                placeholder="your.email@example.com"
+                className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                required
+              />
+              {errors.email && (
+                <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Order confirmation will be sent to this email
+              </p>
             </div>
           </CardContent>
         </Card>

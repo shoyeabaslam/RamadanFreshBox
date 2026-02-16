@@ -139,6 +139,7 @@ function OrderPageContent() {
         delivery_location: deliveryDetails.deliveryLocation || null,
         customer_name: deliveryDetails.customerName,
         phone_number: deliveryDetails.phoneNumber,
+        email: deliveryDetails.email || null,
         address: deliveryDetails.address,
         fruit_ids: selectedFruits,
         sponsor_name: deliveryDetails.sponsorName || null,
@@ -212,6 +213,32 @@ function OrderPageContent() {
             const verifyResult = await verifyResponse.json()
 
             if (verifyResult.success) {
+              // Send confirmation email
+              if (deliveryDetails.email) {
+                try {
+                  await fetch('/api/email/send-order-confirmation', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      orderId: orderId,
+                      customerName: deliveryDetails.customerName,
+                      customerEmail: deliveryDetails.email,
+                      packageName: selectedPackage.name,
+                      quantity: quantity,
+                      deliveryDate: deliveryDetails.deliveryDate,
+                      totalAmount: totalAmount,
+                      discountAmount: orderResult.data.discount_amount || 0,
+                      orderType: orderType,
+                    }),
+                  })
+                } catch (emailError) {
+                  console.error('Failed to send confirmation email:', emailError)
+                  // Continue anyway - don't block success page
+                }
+              }
+              
               // Redirect to success page
               router.push(`/success?order_id=${orderId}`)
             } else {
