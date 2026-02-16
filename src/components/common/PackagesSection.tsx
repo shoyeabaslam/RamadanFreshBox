@@ -207,6 +207,7 @@ export function PackagesSection() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto">
           {packages.map((pkg, index) => (
             <PackageCard
+              index={index}
               key={pkg.id}
               id={pkg.id}
               name={pkg.name}
